@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/silvercg/rest-temp/app/models"
 	"github.com/silvercg/rest-temp/routes"
 
+	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"gorm.io/driver/postgres"
@@ -13,6 +15,11 @@ import (
 )
 
 func main() {
+	// load env file
+	err := godotenv.Load(".env")
+	if err != nil {
+		panic(fmt.Sprintf("Could not load env file error: %s", err))
+	}
 
 	// setup db and run migrations if any
 	db := StartDatabase()
@@ -34,7 +41,9 @@ func main() {
 }
 
 func StartDatabase() *gorm.DB {
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=% sslmode=disable",
+
+	// connect to postgres
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		os.Getenv("POSTGRES_HOST"),
 		os.Getenv("POSTGRES_USER"),
 		os.Getenv("POSTGRES_PASSWORD"),
@@ -46,12 +55,17 @@ func StartDatabase() *gorm.DB {
 		panic(fmt.Errorf("Failed to connect to database error: %v", err))
 	}
 
+	// set connection limits
 	sqlDB, err := db.DB()
 	if err != nil {
 		panic(fmt.Errorf("Failed to get database error: %v", err))
 	}
 	sqlDB.SetMaxIdleConns(5)
 	sqlDB.SetMaxOpenConns(50)
+
+	// automigrate for now. TODO: add up/down style migrations later
+	db.Migrator().DropTable(&models.Book{})
+	db.AutoMigrate(&models.Book{})
 
 	return db
 
